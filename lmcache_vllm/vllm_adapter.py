@@ -9,6 +9,7 @@ from torch.nn.utils.rnn import pad_sequence
 from dataclasses import dataclass
 from torch import nn
 import torch.distributed as dist
+import torch.version
 from vllm.attention.backends.utils import compute_slot_mapping
 
 if TYPE_CHECKING:
@@ -426,7 +427,10 @@ def lmcache_store_kv(
     # For Turing GPU
     num_heads = model_config.get_num_kv_heads(parallel_config)
     head_size = model_config.get_head_size()
-    gpu_capability = torch.cuda.get_device_capability()
+    current_gpu_capability = torch.cuda.get_device_capability()
+
+    expected_gpu_capabilities = [(7,5), (9,0)]
+    is_hip = torch.version.hip
 
     seq_data_idx = 0
     seq_group_metadata_list = model_input.seq_group_metadata_list
@@ -460,7 +464,8 @@ def lmcache_store_kv(
                         Check the GPU architecture.
                         Some older GPUs (e.g. Turing, Volta) has different kv_caches shape
                         """
-                        if (gpu_capability == (7, 5)):
+
+                        if (current_gpu_capability in expected_gpu_capabilities) or is_hip:
                             # Turing. kv_cache has shape: [num_blocks, num_heads x head_size x block_size]
                             key_cache = kv_cache[0].reshape(-1, num_heads, head_size, cache_config.block_size)
                             value_cache = kv_cache[1].reshape(-1, num_heads, head_size, cache_config.block_size)
