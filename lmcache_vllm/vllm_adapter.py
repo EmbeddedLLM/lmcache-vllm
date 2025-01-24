@@ -431,8 +431,11 @@ def lmcache_store_kv(
                         """
                         Check the GPU architecture.
                         Some older GPUs (e.g. Turing, Volta) has different kv_caches shape
-                        """
-                        if (gpu_capability == (7, 5)):
+                        """                       
+
+                        if (
+                            gpu_capability == (7,5)) or (torch.version.hip and (gpu_capability[0] >= 9) 
+                         ):
                             # Turing. kv_cache has shape: [num_blocks, num_heads x head_size x block_size]
                             key_cache = kv_cache[0].reshape(-1, num_heads, head_size, cache_config.block_size)
                             value_cache = kv_cache[1].reshape(-1, num_heads, head_size, cache_config.block_size)
